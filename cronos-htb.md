@@ -76,3 +76,29 @@ Okay - it's time to have a look at that admin subdomain :smiley:
 
 ## authentication bypass
 
+![sqli1](./images/6.png)
+
+Seeing a login form, I immediately thought about trying a sqli to bypass authentication. Before trying this, I did try a few generic credentials such as *admin:admin*
+
+> [!TIP]
+> It is always worth trying generic credentials or researching default ones for the target service
+
+The generic creds did not work, so I fired up burpsuite to start testing the form for sqli vulnerabilities.
+
+I started by trying a simple authentication bypass on the password field - this did not work so I tried again but on the username field - this was successful.
+
+> [!IMPORTANT]
+> Test *every* input field for sqli and xss vulns
+
+`username=admin'+or+1=1+--+-`
+
+The sqli attack works and we then just need to follow the redirection to land at a welcome.php page.
+
+![sqli2](./images/7.png)
+
+![sqli3](./images/8.png)
+
+The welcome.php page is interesting, too :thinking_face:
+
+## command injection and a reverse shell
+
