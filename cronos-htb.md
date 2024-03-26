@@ -98,7 +98,7 @@ The sqli attack works and we then just need to follow the redirection to land at
 
 ![sqli3](./images/8.png)
 
-The welcome.php page is interesting, too :thinking_face:
+The welcome.php page is interesting, too :thinking:
 
 ## command injection and a reverse shell
 
